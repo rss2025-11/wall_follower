@@ -115,7 +115,7 @@ class WallFollower(Node):
         acker_cmd.drive.acceleration = 0.0 # it was 0.5
         acker_cmd.drive.jerk = 0.0
         # self.get_logger().info("Reached pre-publishing")
-        # self.publish_ackermann_cmd.publish(acker_cmd)
+        self.publish_ackermann_cmd.publish(acker_cmd)
         # VisualizationTools.plot_line(x_ls, y_ls, self.line_pub, frame="/laser")
 
     def parameters_callback(self, params):
