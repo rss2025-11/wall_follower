@@ -21,7 +21,8 @@ setup(
     entry_points={
         'console_scripts': [
             "example=wall_follower.example:main",
-            "safety_example=wall_follower.safety:main"
+            "safety_example=wall_follower.safety:main",
+            "wall_follower=wall_follower.wall_follower:main"
         ],
     },
 )
