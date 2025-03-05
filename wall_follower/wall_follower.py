@@ -48,7 +48,7 @@ class WallFollower(Node):
     # TODO: Write your callback functions here    
     def listener_callback(self, LaserScanMsg):
         # manipulate laserscan message based on parameters
-        self.get_logger().info("started the callback")
+        # self.get_logger().info("started the callback")
         # ranges = np.array(LaserScanMsg.ranges)
         # angle_min = LaserScanMsg.angle_min
         # angle_max = LaserScanMsg.angle_max
@@ -114,7 +114,7 @@ class WallFollower(Node):
         acker_cmd.drive.speed = 1.0
         acker_cmd.drive.acceleration = 0.0 # it was 0.5
         acker_cmd.drive.jerk = 0.0
-        self.get_logger().info("Reached pre-publishing")
+        # self.get_logger().info("Reached pre-publishing")
         # self.publish_ackermann_cmd.publish(acker_cmd)
         # VisualizationTools.plot_line(x_ls, y_ls, self.line_pub, frame="/laser")
 
