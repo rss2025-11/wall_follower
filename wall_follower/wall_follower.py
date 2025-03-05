@@ -4,11 +4,8 @@ import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import LaserScan
 from ackermann_msgs.msg import AckermannDriveStamped
-from visualization_msgs.msg import Marker
 from rcl_interfaces.msg import SetParametersResult
 from typing import Dict
-
-from wall_follower.visualization_tools import VisualizationTools
 
 
 class WallFollower(Node):
