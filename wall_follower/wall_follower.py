@@ -49,62 +49,62 @@ class WallFollower(Node):
     def listener_callback(self, LaserScanMsg):
         # manipulate laserscan message based on parameters
         self.get_logger().info("started the callback")
-        ranges = np.array(LaserScanMsg.ranges)
-        angle_min = LaserScanMsg.angle_min
-        angle_max = LaserScanMsg.angle_max
-        angle_increment = LaserScanMsg.angle_increment
-        angles = np.arange(angle_min, angle_max, angle_increment)
-        if self.SIDE == 1:
-            # fix the range for which the laser scan data is being used
-            mask = (angles>=0*np.pi/6) & (angles<=np.pi/2) # was 6 and 3
-        else:
-            mask = (angles<=0*-np.pi/6) & (angles>=-np.pi/2)
-        mask = mask & (ranges < 4)
-        relavent_ranges = ranges[mask]
-        relavent_angles = angles[mask]
+        # ranges = np.array(LaserScanMsg.ranges)
+        # angle_min = LaserScanMsg.angle_min
+        # angle_max = LaserScanMsg.angle_max
+        # angle_increment = LaserScanMsg.angle_increment
+        # angles = np.arange(angle_min, angle_max, angle_increment)
+        # if self.SIDE == 1:
+        #     # fix the range for which the laser scan data is being used
+        #     mask = (angles>=0*np.pi/6) & (angles<=np.pi/2) # was 6 and 3
+        # else:
+        #     mask = (angles<=0*-np.pi/6) & (angles>=-np.pi/2)
+        # mask = mask & (ranges < 4)
+        # relavent_ranges = ranges[mask]
+        # relavent_angles = angles[mask]
 
-        # find the equation of the wall's line
-        # use some form of least squares...
-        x = relavent_ranges*np.cos(relavent_angles)
-        y = relavent_ranges*np.sin(relavent_angles)
-        A = np.vstack([x, np.ones_like(x)]).T  # coefficient matrix
-        m, b = np.linalg.lstsq(A, y, rcond=None)[0]  # Solve Ax = b
-        x_ls = x
-        y_ls = m*x+b
-        # Convert y = mx + b to Ax + By + C = 0 form
-        A = -m
-        B = 1
-        C = -b
-        x_r, y_r = 0, 0 # robot is center of coordinate system
-        distance_from_wall = np.abs(A*x_r+B*y_r+C)/np.sqrt(A**2+B**2)
-        # distance_from_wall = relavent_ranges
-        distance_error = self.DESIRED_DISTANCE - distance_from_wall 
+        # # find the equation of the wall's line
+        # # use some form of least squares...
+        # x = relavent_ranges*np.cos(relavent_angles)
+        # y = relavent_ranges*np.sin(relavent_angles)
+        # A = np.vstack([x, np.ones_like(x)]).T  # coefficient matrix
+        # m, b = np.linalg.lstsq(A, y, rcond=None)[0]  # Solve Ax = b
+        # x_ls = x
+        # y_ls = m*x+b
+        # # Convert y = mx + b to Ax + By + C = 0 form
+        # A = -m
+        # B = 1
+        # C = -b
+        # x_r, y_r = 0, 0 # robot is center of coordinate system
+        # distance_from_wall = np.abs(A*x_r+B*y_r+C)/np.sqrt(A**2+B**2)
+        # # distance_from_wall = relavent_ranges
+        # distance_error = self.DESIRED_DISTANCE - distance_from_wall 
 
         
-        Kp = 0.5
-        Kd = 0.1 # was 3
+        # Kp = 0.5
+        # Kd = 0.1 # was 3
 
-        if self.VELOCITY > 1:
-            Kp = 0.7
-            Kd = 4 # was 1
-        if self.VELOCITY > 2:
-            Kp = 4 # was 1.7
-            Kd = 9 # was 2
-            distance_error = distance_error + 0.075
+        # if self.VELOCITY > 1:
+        #     Kp = 0.7
+        #     Kd = 4 # was 1
+        # if self.VELOCITY > 2:
+        #     Kp = 4 # was 1.7
+        #     Kd = 9 # was 2
+        #     distance_error = distance_error + 0.075
             
-        derivative = distance_error - self.previous_error
+        # derivative = distance_error - self.previous_error
 
-        control_output = Kp * distance_error + Kd * derivative
-        acker_cmd = AckermannDriveStamped()
-        acker_cmd.header.stamp = self.get_clock().now().to_msg()
-        acker_cmd.header.frame_id = 'map'
-        acker_cmd.drive.steering_angle = float(-self.SIDE*control_output)
-        acker_cmd.drive.steering_angle_velocity = 0.0 # it was 2
-        acker_cmd.drive.speed = self.VELOCITY
-        acker_cmd.drive.acceleration = 0.0 # it was 0.5
-        acker_cmd.drive.jerk = 0.0
+        # control_output = Kp * distance_error + Kd * derivative
+        # acker_cmd = AckermannDriveStamped()
+        # acker_cmd.header.stamp = self.get_clock().now().to_msg()
+        # acker_cmd.header.frame_id = 'map'
+        # acker_cmd.drive.steering_angle = float(-self.SIDE*control_output)
+        # acker_cmd.drive.steering_angle_velocity = 0.0 # it was 2
+        # acker_cmd.drive.speed = self.VELOCITY
+        # acker_cmd.drive.acceleration = 0.0 # it was 0.5
+        # acker_cmd.drive.jerk = 0.0
 
-        self.previous_error = distance_error
+        # self.previous_error = distance_error
         
         acker_cmd = AckermannDriveStamped()
         acker_cmd.header.stamp = self.get_clock().now().to_msg()
