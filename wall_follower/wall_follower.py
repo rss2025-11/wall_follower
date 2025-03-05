@@ -42,8 +42,7 @@ class WallFollower(Node):
                                                      self.listener_callback,
                                                      10)
         self.publish_ackermann_cmd = self.create_publisher(AckermannDriveStamped,
-                                                           "/drive",
-                                                        #    "/vesc/high_level/input/nav_0",
+                                                           "/vesc/high_level/input/nav_0",
                                                            10)
         # self.line_pub = self.create_publisher(Marker, self.WALL_TOPIC, 1)
     # TODO: Write your callback functions here    
