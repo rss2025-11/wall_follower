@@ -14,39 +14,36 @@ class WallFollower(Node):
         super().__init__("wall_follower")
         # Declare parameters to make them available for use
         # DO NOT MODIFY THIS!
-        # self.declare_parameter("scan_topic", "/scan")
-        # self.declare_parameter("drive_topic", "/drive")  # string
-        # self.declare_parameter("side", 1)  # integer (-1 for right, 1 for left)
-        # self.declare_parameter("velocity", 1.0)  # double
-        # self.declare_parameter("desired_distance", 1.0)  # double
-        # # Fetch constants from the ROS parameter server
-        # # This is necessary for the tests to be able to test varying parameters!
-        # self.add_on_set_parameters_callback(self.parameters_callback)
+        self.declare_parameter("scan_topic", "/scan")
+        self.declare_parameter("drive_topic", "/drive")  # string
+        self.declare_parameter("side", 1)  # integer (-1 for right, 1 for left)
+        self.declare_parameter("velocity", 1.0)  # double
+        self.declare_parameter("desired_distance", 1.0)  # double
+        self.declare_parameter("lookahead_ratio", 5.0)  # double
+        self.declare_parameter("kp", 2.0)  # double
+        self.declare_parameter("kd", 1.0)  # double
+        # Fetch constants from the ROS parameter server
+        # This is necessary for the tests to be able to test varying parameters!
+        self.add_on_set_parameters_callback(self.parameters_callback)
 
-        # self.SCAN_TOPIC = (
-        #     self.get_parameter("scan_topic").get_parameter_value().string_value
-        # )
-        # self.DRIVE_TOPIC = (
-        #     self.get_parameter("drive_topic").get_parameter_value().string_value
-        # )
-        # self.SIDE = self.get_parameter("side").get_parameter_value().integer_value
-        # self.VELOCITY = (
-        #     self.get_parameter("velocity").get_parameter_value().double_value
-        # )
-        # self.DESIRED_DISTANCE = (
-        #     self.get_parameter("desired_distance").get_parameter_value().double_value
-        # )
-
-        self.SCAN_TOPIC = "/scan"
-        self.DRIVE_TOPIC = "/vesc/high_level/input/nav_0"
-        self.SIDE = 1
-        self.VELOCITY = 1.0
-        self.DESIRED_DISTANCE = 1.0
-
-        # Hardcoded values instead of getting from parameters
-        self.LOOKAHEAD_RATIO = 5.0
-        self.KP = 2
-        self.KD = 1
+        self.SCAN_TOPIC = (
+            self.get_parameter("scan_topic").get_parameter_value().string_value
+        )
+        self.DRIVE_TOPIC = (
+            self.get_parameter("drive_topic").get_parameter_value().string_value
+        )
+        self.SIDE = self.get_parameter("side").get_parameter_value().integer_value
+        self.VELOCITY = (
+            self.get_parameter("velocity").get_parameter_value().double_value
+        )
+        self.DESIRED_DISTANCE = (
+            self.get_parameter("desired_distance").get_parameter_value().double_value
+        )
+        self.LOOKAHEAD_RATIO = (
+            self.get_parameter("lookahead_ratio").get_parameter_value().double_value
+        )
+        self.KP = self.get_parameter("kp").get_parameter_value().double_value
+        self.KD = self.get_parameter("kd").get_parameter_value().double_value
 
         # Define angle ranges for scan filtering
         self.ANGLE_FRONT_MARGIN = -np.pi / 12  # in radians
@@ -108,22 +105,6 @@ class WallFollower(Node):
         # Fit an unweighted line (y = m*x + b) using ordinary least squares
         A = np.vstack([x, np.ones(len(x))]).T
         m, b = np.linalg.lstsq(A, y, rcond=None)[0]
-
-        # Apply outlier rejection based on the residuals
-        # residuals = y - (m * x + b)
-        # std_residual = np.std(residuals)
-        # inlier_mask = np.abs(residuals) < 2 * std_residual
-
-        # if np.sum(inlier_mask) >= 2:
-        #     x_inliers = x[inlier_mask]
-        #     y_inliers = y[inlier_mask]
-        #     weights_inliers = weights[inlier_mask]
-        #     A_inliers = np.vstack([x_inliers, np.ones(len(x_inliers))]).T
-        #     m, b = np.linalg.lstsq(
-        #         A_inliers * weights_inliers[:, np.newaxis],
-        #         y_inliers * weights_inliers,
-        #         rcond=None,
-        #     )[0]
 
         # Calculate the wall's orientation and perpendicular distance.
         angle_to_wall = np.arctan(m)

@@ -1,28 +1,26 @@
 from setuptools import setup
 
-package_name = 'wall_follower'
+package_name = "wall_follower"
 
 setup(
     name=package_name,
-    version='0.0.0',
+    version="0.0.0",
     packages=[package_name],
     data_files=[
-        ('share/ament_index/resource_index/packages',
-         ['resource/' + package_name]),
-        ('share/' + package_name, ['package.xml']),
+        ("share/ament_index/resource_index/packages", ["resource/" + package_name]),
+        ("share/" + package_name, ["package.xml", "wall_follower/params.yaml"]),
     ],
-    install_requires=['setuptools'],
+    install_requires=["setuptools"],
     zip_safe=True,
-    maintainer='root',
-    maintainer_email='root@todo.todo',
-    description='TODO: Package description',
-    license='TODO: License declaration',
-    tests_require=['pytest'],
+    maintainer="root",
+    maintainer_email="root@todo.todo",
+    description="Wall follower node",
+    license="TODO: License declaration",
+    tests_require=["pytest"],
     entry_points={
-        'console_scripts': [
+        "console_scripts": [
             "example=wall_follower.example:main",
-            "safety_example=wall_follower.safety:main",
-            "wall_follower=wall_follower.wall_follower:main"
+            "wall_follower=wall_follower.wall_follower:main",
         ],
     },
 )
