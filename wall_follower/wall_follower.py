@@ -49,7 +49,7 @@ class WallFollower(Node):
 
         # Define angle ranges for scan filtering
         self.ANGLE_FRONT_MARGIN = -np.pi / 12  # in radians
-        self.ANGLE_BACK_MARGIN = 2 * np.pi / 3
+        self.ANGLE_BACK_MARGIN = np.pi / 3
 
         self.front_distance = 0.0
 
@@ -168,6 +168,8 @@ class WallFollower(Node):
 
         # mulitply by SIDE to get correct steering direction
         steering = -self.SIDE * steering
+
+        steering = max(min(steering, np.pi / 8), -np.pi / 8)
 
         control_data = {
             "steering_angle": steering,
