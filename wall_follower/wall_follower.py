@@ -7,6 +7,7 @@ from ackermann_msgs.msg import AckermannDriveStamped
 from rcl_interfaces.msg import SetParametersResult
 from std_msgs.msg import Float32
 from typing import Dict
+from wall_follower.visualization_helper import WallFollowerVisualizer
 
 
 class WallFollower(Node):
@@ -48,7 +49,7 @@ class WallFollower(Node):
 
         # Define angle ranges for scan filtering
         self.ANGLE_FRONT_MARGIN = -np.pi / 12  # in radians
-        self.ANGLE_BACK_MARGIN = np.pi / 2
+        self.ANGLE_BACK_MARGIN = 2 * np.pi / 3
 
         self.front_distance = 0.0
 
@@ -68,6 +69,8 @@ class WallFollower(Node):
             10,
         )
 
+        self.visualizer = WallFollowerVisualizer(self)
+
     def parse_scan_data(self, scan_data: LaserScan) -> None:
         """
         Take in the current scan data and compute the distance and angle to the wall
@@ -75,6 +78,9 @@ class WallFollower(Node):
 
         Returns early with a default dict if there are not enough valid points.
         """
+        self.visualizer.visualize_view_angle(
+            self.ANGLE_FRONT_MARGIN, self.ANGLE_BACK_MARGIN, self.SIDE
+        )
         # Get angles and ranges from scan data
         angles = np.arange(
             scan_data.angle_min, scan_data.angle_max, scan_data.angle_increment
@@ -100,26 +106,33 @@ class WallFollower(Node):
 
         # Include only points within a lookahead distance.
         max_distance = self.LOOKAHEAD_RATIO * self.DESIRED_DISTANCE
-        mask = np.sqrt(x**2 + y**2) <= max_distance
-        x = x[mask]
-        y = y[mask]
+        distance_mask = np.sqrt(x**2 + y**2) <= max_distance
+        x = x[distance_mask]
+        y = y[distance_mask]
+        angles = angles[distance_mask]
 
         if len(x) < 2:  # Need at least 2 points for line fitting
             return {"error": 0, "angle_to_wall": 0.0}
 
-        # if front distance is leq desired distance, weight front points more (front is angle front margin on both directions)
+        # if front distance is leq desired distance, weight front points more
         if self.front_distance <= self.DESIRED_DISTANCE:
-            # Get indices of front points (within ANGLE_FRONT_MARGIN of 0)
-            front_mask = np.abs(angles) <= self.ANGLE_FRONT_MARGIN
-            # Duplicate front points to give them more weight in line fitting
-            x = np.concatenate([x, x[front_mask]])
-            y = np.concatenate([y, y[front_mask]])
+            # Find points within front margin
+            front_mask = np.abs(angles) <= abs(self.ANGLE_FRONT_MARGIN)
+            # Get the front points
+            front_x = x[front_mask]
+            front_y = y[front_mask]
+            # Duplicate front points by concatenating them with all points
+            x = np.concatenate([x, front_x])
+            y = np.concatenate([y, front_y])
 
         m, b = self.fit_line(x, y)
 
         # Calculate the wall's orientation and perpendicular distance.
         angle_to_wall = np.arctan(m)
         wall_distance = abs(b) / np.sqrt(m**2 + 1)
+
+        self.visualizer.visualize_wall_line(m, b)
+        self.visualizer.visualize_desired_line(m, b, self.DESIRED_DISTANCE, self.SIDE)
 
         scan_result = {
             "distance_to_wall": wall_distance,
