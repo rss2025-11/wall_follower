@@ -17,13 +17,15 @@ class WallFollower(Node):
         # Declare parameters to make them available for use
         # DO NOT MODIFY THIS!
         self.declare_parameter("scan_topic", "/scan")
-        self.declare_parameter("drive_topic", "/drive")  # string
+        self.declare_parameter("drive_topic", "/vesc/high_level/input/nav_0")  # string
         self.declare_parameter("side", 1)  # integer (-1 for right, 1 for left)
         self.declare_parameter("velocity", 1.0)  # double
         self.declare_parameter("desired_distance", 1.0)  # double
         self.declare_parameter("lookahead_ratio", 5.0)  # double
         self.declare_parameter("kp", 2.0)  # double
         self.declare_parameter("kd", 1.0)  # double
+        self.declare_parameter("kp_angle", 1.0)  # double
+        self.declare_parameter("kd_angle", 0.5)  # double
         # Fetch constants from the ROS parameter server
         # This is necessary for the tests to be able to test varying parameters!
         self.add_on_set_parameters_callback(self.parameters_callback)
@@ -46,6 +48,12 @@ class WallFollower(Node):
         )
         self.KP = self.get_parameter("kp").get_parameter_value().double_value
         self.KD = self.get_parameter("kd").get_parameter_value().double_value
+        self.KP_ANGLE = (
+            self.get_parameter("kp_angle").get_parameter_value().double_value
+        )
+        self.KD_ANGLE = (
+            self.get_parameter("kd_angle").get_parameter_value().double_value
+        )
 
         # Define angle ranges for scan filtering
         self.ANGLE_FRONT_MARGIN = -np.pi / 12  # in radians
@@ -112,7 +120,7 @@ class WallFollower(Node):
         angles = angles[distance_mask]
 
         if len(x) < 2:  # Need at least 2 points for line fitting
-            return {"error": 0, "angle_to_wall": 0.0}
+            return {"distance_to_wall": 0, "angle_to_wall": 0.0}
 
         # if front distance is leq desired distance, weight front points more
         if self.front_distance <= self.DESIRED_DISTANCE:
@@ -122,8 +130,8 @@ class WallFollower(Node):
             front_x = x[front_mask]
             front_y = y[front_mask]
             # Duplicate front points by concatenating them with all points
-            x = np.concatenate([x, front_x])
-            y = np.concatenate([y, front_y])
+            #x = np.concatenate([x, front_x])
+           # y = np.concatenate([y, front_y])
 
         m, b = self.fit_line(x, y)
 
@@ -148,32 +156,46 @@ class WallFollower(Node):
 
     def control_car(self, scan_result: Dict[str, float]) -> None:
         """
-        Uses PD control based on the parsed scan data to compute a steering command.
-        The error is defined so that negative means too close to the wall and positive means
-        too far away.
+        Uses dual PD control based on both distance and angle to compute a steering command.
         """
-        error = (
-            self.DESIRED_DISTANCE - scan_result["distance_to_wall"]
-        )  # negative if too close and positive if too far
+        # Distance error (negative if too close and positive if too far)
+        dist_error = self.DESIRED_DISTANCE - scan_result["distance_to_wall"]
 
-        # Compute derivative of the error
-        if hasattr(self, "prev_error"):
-            derivative = error - self.prev_error
+        # Angle error (we want to be parallel to the wall, so target angle is 0)
+        # Note: The sign may need adjustment based on your coordinate system
+        ang_error = -scan_result[
+            "angle_to_wall"
+        ]  # Negative because we want to be parallel
+
+        # Compute derivatives
+        if hasattr(self, "prev_dist_error"):
+            dist_derivative = dist_error - self.prev_dist_error
         else:
-            derivative = 0.0  # No derivative on the first measurement.
-        self.prev_error = error
+            dist_derivative = 0.0
+        self.prev_dist_error = dist_error
 
-        # PD control to compute steering.
-        steering = self.KP * error + self.KD * derivative
+        if hasattr(self, "prev_ang_error"):
+            ang_derivative = ang_error - self.prev_ang_error
+        else:
+            ang_derivative = 0.0
+        self.prev_ang_error = ang_error
 
-        # mulitply by SIDE to get correct steering direction
+        # Dual PD control to compute steering
+        steering = (
+            self.KP * dist_error
+            + self.KD * dist_derivative  # Distance control
+            + self.KP_ANGLE * ang_error
+            + self.KD_ANGLE * ang_derivative  # Angle control
+        )
+
+        # Multiply by SIDE to get correct steering direction
         steering = -self.SIDE * steering
 
         steering = max(min(steering, np.pi / 8), -np.pi / 8)
 
         control_data = {
             "steering_angle": steering,
-            "speed": self.VELOCITY,
+            "speed": self.VELOCITY #* max(0.9, 1-0.1*steering**2), # 0.9 is within 10% desired velocity
         }
         self.publish_control(control_data)
 
