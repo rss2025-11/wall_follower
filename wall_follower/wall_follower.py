@@ -5,6 +5,7 @@ from rclpy.node import Node
 from sensor_msgs.msg import LaserScan
 from ackermann_msgs.msg import AckermannDriveStamped
 from rcl_interfaces.msg import SetParametersResult
+from std_msgs.msg import Float32
 from typing import Dict
 
 
@@ -49,6 +50,8 @@ class WallFollower(Node):
         self.ANGLE_FRONT_MARGIN = -np.pi / 12  # in radians
         self.ANGLE_BACK_MARGIN = np.pi / 2
 
+        self.front_distance = 0.0
+
         # Initialize publishers and subscribers
         self.scan_subscriber = self.create_subscription(
             LaserScan, self.SCAN_TOPIC, self.parse_scan_data, 1
@@ -56,6 +59,13 @@ class WallFollower(Node):
 
         self.drive_publisher = self.create_publisher(
             AckermannDriveStamped, self.DRIVE_TOPIC, 10
+        )
+
+        self.front_distance_subscriber = self.create_subscription(
+            Float32,
+            "/safety_controller/distance_to_front_wall",
+            self.front_distance_callback,
+            10,
         )
 
     def parse_scan_data(self, scan_data: LaserScan) -> None:
@@ -70,11 +80,6 @@ class WallFollower(Node):
             scan_data.angle_min, scan_data.angle_max, scan_data.angle_increment
         )
         ranges = np.array(scan_data.ranges)
-
-        # Filter out invalid measurements (ie inf or nan)
-        # valid_idx = np.isfinite(ranges)
-        # angles = angles[valid_idx]
-        # ranges = ranges[valid_idx]
 
         # Filter points based on side and angle.
         # Note that positive is ccw (to the left) and negative is cw (to the right)
@@ -102,9 +107,15 @@ class WallFollower(Node):
         if len(x) < 2:  # Need at least 2 points for line fitting
             return {"error": 0, "angle_to_wall": 0.0}
 
-        # Fit an unweighted line (y = m*x + b) using ordinary least squares
-        A = np.vstack([x, np.ones(len(x))]).T
-        m, b = np.linalg.lstsq(A, y, rcond=None)[0]
+        # if front distance is leq desired distance, weight front points more (front is angle front margin on both directions)
+        if self.front_distance <= self.DESIRED_DISTANCE:
+            # Get indices of front points (within ANGLE_FRONT_MARGIN of 0)
+            front_mask = np.abs(angles) <= self.ANGLE_FRONT_MARGIN
+            # Duplicate front points to give them more weight in line fitting
+            x = np.concatenate([x, x[front_mask]])
+            y = np.concatenate([y, y[front_mask]])
+
+        m, b = self.fit_line(x, y)
 
         # Calculate the wall's orientation and perpendicular distance.
         angle_to_wall = np.arctan(m)
@@ -116,6 +127,11 @@ class WallFollower(Node):
         }
 
         self.control_car(scan_result)
+
+    def fit_line(self, x, y):
+        A = np.vstack([x, np.ones(len(x))]).T
+        m, b = np.linalg.lstsq(A, y, rcond=None)[0]
+        return m, b
 
     def control_car(self, scan_result: Dict[str, float]) -> None:
         """
@@ -173,6 +189,9 @@ class WallFollower(Node):
                     f"Updated desired_distance to {self.DESIRED_DISTANCE}"
                 )
         return SetParametersResult(successful=True)
+
+    def front_distance_callback(self, distance: Float32):
+        self.front_distance = distance.data
 
 
 def main():
