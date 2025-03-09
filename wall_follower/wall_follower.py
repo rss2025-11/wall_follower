@@ -8,7 +8,7 @@ from rcl_interfaces.msg import SetParametersResult
 from std_msgs.msg import Float32
 from typing import Dict
 from wall_follower.visualization_helper import WallFollowerVisualizer
-
+import math
 
 class WallFollower(Node):
 
@@ -59,7 +59,7 @@ class WallFollower(Node):
         self.ANGLE_FRONT_MARGIN = -np.pi / 12  # in radians
         self.ANGLE_BACK_MARGIN = np.pi / 3
 
-        self.front_distance = 0.0
+        self.front_distance = 2*self.DESIRED_DISTANCE + 0.1 # MAYBE SHOULD BE desired_distance + 1... WAS 0
 
         # Initialize publishers and subscribers
         self.scan_subscriber = self.create_subscription(
@@ -76,6 +76,11 @@ class WallFollower(Node):
             self.front_distance_callback,
             10,
         )
+
+        self.current_distance_publisher = self.create_publisher(
+            Float32,
+            "/distance_from_wall",
+            10)
 
         self.visualizer = WallFollowerVisualizer(self)
 
@@ -123,15 +128,24 @@ class WallFollower(Node):
             return {"distance_to_wall": 0, "angle_to_wall": 0.0}
 
         # if front distance is leq desired distance, weight front points more
-        if self.front_distance <= self.DESIRED_DISTANCE:
+        if self.front_distance <= self.DESIRED_DISTANCE * 2: # TODO: THIS 2 WAS JUST ADDED
+            self.get_logger().info(f"Entering weighting with distance {self.front_distance}")
             # Find points within front margin
-            front_mask = np.abs(angles) <= abs(self.ANGLE_FRONT_MARGIN)
+            # front_mask = np.abs(angles) <= abs(self.ANGLE_FRONT_MARGIN)
+            angles_array = np.array(angles)
+            # trying to change the angles so we see the the front wall more
+            front_mask = (angles_array >= -15*np.pi/180) & (angles_array <= 5*np.pi/180) if self.SIDE == 1 else (angles_array <= 15*np.pi/180) & (angles_array >= -5*np.pi/180)
+
             # Get the front points
             front_x = x[front_mask]
             front_y = y[front_mask]
             # Duplicate front points by concatenating them with all points
-            #x = np.concatenate([x, front_x])
-           # y = np.concatenate([y, front_y])
+            for i in range(1, math.floor(self.VELOCITY)):
+                x = np.concatenate([x, front_x])
+                y = np.concatenate([y, front_y])
+                # x = np.concatenate([x, front_x])
+                # y = np.concatenate([y, front_y])
+                self.get_logger().info("Activated extra concat")
 
         m, b = self.fit_line(x, y)
 
@@ -161,6 +175,8 @@ class WallFollower(Node):
         # Distance error (negative if too close and positive if too far)
         dist_error = self.DESIRED_DISTANCE - scan_result["distance_to_wall"]
 
+        self.publish_distance_from_wall(scan_result["distance_to_wall"])
+
         # Angle error (we want to be parallel to the wall, so target angle is 0)
         # Note: The sign may need adjustment based on your coordinate system
         ang_error = -scan_result[
@@ -182,14 +198,14 @@ class WallFollower(Node):
 
         # Dual PD control to compute steering
         steering = (
-            self.KP * dist_error
+            self.KP * dist_error*-self.SIDE
             + self.KD * dist_derivative  # Distance control
-            + self.KP_ANGLE * ang_error
+            + self.KP_ANGLE * -1*ang_error
             + self.KD_ANGLE * ang_derivative  # Angle control
         )
 
         # Multiply by SIDE to get correct steering direction
-        steering = -self.SIDE * steering
+        # steering = -self.SIDE * steering
 
         steering = max(min(steering, np.pi / 8), -np.pi / 8)
 
@@ -205,6 +221,11 @@ class WallFollower(Node):
         ackermann_msg.drive.steering_angle = control_data["steering_angle"]
         ackermann_msg.drive.speed = control_data["speed"]
         self.drive_publisher.publish(ackermann_msg)
+
+    def publish_distance_from_wall(self, distance):
+        dist_from_wall = Float32()
+        dist_from_wall.data = distance
+        self.current_distance_publisher.publish(dist_from_wall)
 
     def parameters_callback(self, params):
         """

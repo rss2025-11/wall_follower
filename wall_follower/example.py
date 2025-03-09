@@ -28,8 +28,8 @@ class ExampleNode(Node):
 
         # Go in a circle
         msg.header.stamp = self.get_clock().now().to_msg()
-        msg.drive.steering_angle = 0.34
-        msg.drive.speed = 0.75
+        msg.drive.steering_angle = 0.0
+        msg.drive.speed = 1.0
         self.publisher_.publish(msg)
 
 
