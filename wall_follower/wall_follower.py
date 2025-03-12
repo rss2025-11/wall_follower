@@ -59,7 +59,7 @@ class WallFollower(Node):
         self.ANGLE_FRONT_MARGIN = -np.pi / 12  # in radians
         self.ANGLE_BACK_MARGIN = np.pi / 3
 
-        self.front_distance = 2*self.DESIRED_DISTANCE + 0.1 # MAYBE SHOULD BE desired_distance + 1... WAS 0
+        self.front_distance = 2*self.DESIRED_DISTANCE + 0.1
 
         # Initialize publishers and subscribers
         self.scan_subscriber = self.create_subscription(
@@ -128,10 +128,8 @@ class WallFollower(Node):
             return {"distance_to_wall": 0, "angle_to_wall": 0.0}
 
         # if front distance is leq desired distance, weight front points more
-        if self.front_distance <= self.DESIRED_DISTANCE * 2: # TODO: THIS 2 WAS JUST ADDED
-            self.get_logger().info(f"Entering weighting with distance {self.front_distance}")
+        if self.front_distance <= self.DESIRED_DISTANCE * 2:
             # Find points within front margin
-            # front_mask = np.abs(angles) <= abs(self.ANGLE_FRONT_MARGIN)
             angles_array = np.array(angles)
             # trying to change the angles so we see the the front wall more
             front_mask = (angles_array >= -15*np.pi/180) & (angles_array <= 5*np.pi/180) if self.SIDE == 1 else (angles_array <= 15*np.pi/180) & (angles_array >= -5*np.pi/180)
@@ -140,12 +138,10 @@ class WallFollower(Node):
             front_x = x[front_mask]
             front_y = y[front_mask]
             # Duplicate front points by concatenating them with all points
+            # This should help the robot turn when blocked by a wall
             for i in range(1, math.floor(self.VELOCITY)):
                 x = np.concatenate([x, front_x])
                 y = np.concatenate([y, front_y])
-                # x = np.concatenate([x, front_x])
-                # y = np.concatenate([y, front_y])
-                self.get_logger().info("Activated extra concat")
 
         m, b = self.fit_line(x, y)
 
@@ -204,14 +200,12 @@ class WallFollower(Node):
             + self.KD_ANGLE * ang_derivative  # Angle control
         )
 
-        # Multiply by SIDE to get correct steering direction
-        # steering = -self.SIDE * steering
 
         steering = max(min(steering, np.pi / 8), -np.pi / 8)
 
         control_data = {
             "steering_angle": steering,
-            "speed": self.VELOCITY #* max(0.9, 1-0.1*steering**2), # 0.9 is within 10% desired velocity
+            "speed": self.VELOCITY
         }
         self.publish_control(control_data)
 
@@ -237,15 +231,15 @@ class WallFollower(Node):
         for param in params:
             if param.name == "side":
                 self.SIDE = param.value
-                self.get_logger().info(f"Updated side to {self.SIDE}")
+                # self.get_logger().info(f"Updated side to {self.SIDE}")
             elif param.name == "velocity":
                 self.VELOCITY = param.value
-                self.get_logger().info(f"Updated velocity to {self.VELOCITY}")
+                # self.get_logger().info(f"Updated velocity to {self.VELOCITY}")
             elif param.name == "desired_distance":
                 self.DESIRED_DISTANCE = param.value
-                self.get_logger().info(
-                    f"Updated desired_distance to {self.DESIRED_DISTANCE}"
-                )
+                # self.get_logger().info(
+                #     f"Updated desired_distance to {self.DESIRED_DISTANCE}"
+                # )
         return SetParametersResult(successful=True)
 
     def front_distance_callback(self, distance: Float32):
