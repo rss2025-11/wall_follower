@@ -2,11 +2,11 @@ wall_follower:
   ros__parameters:
     scan_topic: "/scan"
     drive_topic: "/vesc/high_level/input/nav_0"
-    side: 1 #-1 for right, 1 for left
+    side: -1 #-1 for right, 1 for left
     velocity: 1.0
-    desired_distance: 0.5
-    lookahead_ratio: 5.0
-    kp: 1.1
-    kd: 0.05
-    kp_angle: 1.0
-    kd_angle: 0.01
+    desired_distance: 0.5 
+    lookahead_ratio: 3.0 # DO NOT CHANGE
+    kp: 1.1 # DO NOT CHANGE
+    kd: 0.05 # DO NOT CHANGE
+    kp_angle: 1.0 # DO NOT CHANGE
+    kd_angle: 0.01 # DO NOT CHANGE

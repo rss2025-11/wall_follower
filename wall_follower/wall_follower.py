@@ -118,7 +118,7 @@ class WallFollower(Node):
         y = ranges * np.sin(angles)
 
         # Include only points within a lookahead distance.
-        max_distance = self.LOOKAHEAD_RATIO * self.DESIRED_DISTANCE
+        max_distance = self.LOOKAHEAD_RATIO *self.DESIRED_DISTANCE
         distance_mask = np.sqrt(x**2 + y**2) <= max_distance
         x = x[distance_mask]
         y = y[distance_mask]
