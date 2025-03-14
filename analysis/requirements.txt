@@ -1,0 +1,10 @@
+numpy<2.0.0
+matplotlib>=3.5.0
+seaborn>=0.11.0
+scipy>=1.7.0
+pandas>=1.3.0
+# ROS2 dependencies are assumed to be installed in the environment
+# If not, you would need to install:
+# rclpy
+# rosbag2_py
+# rosidl_runtime_py 
